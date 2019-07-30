@@ -49,11 +49,12 @@ RUN cd $TMPDIR/cppyy && \
 RUN adduser cppyy-test
 USER cppyy-test
 
-# Add test file
-ADD test.py $HOME/test.py
-
 # Go to home dir
+ENV HOME /home/cppyy-test
 WORKDIR $HOME
+
+# Add test file
+ADD test.py test.py
 
 # Run test
 CMD [ "/usr/bin/python", "test.py" ]
