@@ -45,6 +45,13 @@ RUN cp -r ${INCLUDE_DIR}/python2.7/CPyCppyy $INCLUDE_DIR
 RUN cd $TMPDIR/cppyy && \
     pip install .
 
+# Install pyenv dependencies
+RUN yum -y install zlib-devel && \
+    yum -y install bzip2-devel && \
+    yum -y install readline-devel && \
+    yum -y install sqlite-devel && \
+    yum -y install openssl-devel
+
 # Add test user and switch to it
 RUN adduser cppyy-test
 USER cppyy-test
@@ -53,9 +60,21 @@ USER cppyy-test
 ENV HOME /home/cppyy-test
 WORKDIR $HOME
 
-# Add test file
+# Install pyenv
+RUN git clone https://github.com/pyenv/pyenv.git $HOME/.pyenv
+
+# Configure pyenv
+ENV PYENV_ROOT $HOME/.pyenv
+ENV PATH $PYENV_ROOT/bin:$PATH
+
+# Install newer Python versions
+RUN pyenv install 2.7.13
+RUN pyenv install 2.7.14
+
+# Add test file and script
 ADD test.py test.py
+ADD run_test.sh run_test.sh
 
 # Run test
-CMD [ "/usr/bin/python", "test.py" ]
+CMD [ "bash", "./run_test.sh" ]
 
