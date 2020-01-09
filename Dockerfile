@@ -12,7 +12,8 @@ RUN yum -y install git && \
     ln -s /usr/bin/cmake3 /usr/bin/cmake && \
     yum -y install python36-devel && \
     yum -y install python36-pip && \
-    pip3 install setuptools --upgrade
+    pip3 install setuptools --upgrade && \
+    pip3 install wheel
 
 # Environment
 ENV TMPDIR /tmp
