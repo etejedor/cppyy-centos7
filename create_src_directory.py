@@ -156,12 +156,23 @@ if not os.path.exists(pkgdir):
 else:
     print('reusing existing directory', pkgdir)
 
-# remove everything except for the listed set of libraries
+
+# remove old directoy, if any and enter release directory
 try:
     shutil.rmtree('src')
 except OSError:
     pass
 os.chdir(pkgdir)
+
+# copy over some hard-wired GUI stuff (TODO: excise this mess)
+srcdir, tgtdir = 'core/gui/inc', 'core/base/inc'
+for fn in ['GuiTypes.h', 'TApplicationImp.h', 'TBrowser.h', 'TBrowserImp.h', 'TClassMenuItem.h', 'TGuiFactory.h']:
+    shutil.copy2(os.path.join(srcdir, fn), os.path.join(tgtdir, fn))
+srcdir, tgtdir = 'core/gui/src', 'core/base/src'
+for fn in ['TApplicationImp.cxx', 'TBrowser.cxx', 'TBrowserImp.cxx', 'TClassMenuItem.cxx', 'TGuiFactory.cxx']:
+    shutil.copy2(os.path.join(srcdir, fn), os.path.join(tgtdir, fn))
+
+# remove everything except for the listed set of libraries
 clean_directory(os.path.curdir,                  ROOT_KEEP)
 clean_directory('core',                          ROOT_CORE_KEEP)
 clean_directory('builtins',                      ROOT_BUILTINS_KEEP)
@@ -170,6 +181,8 @@ clean_directory(os.path.join('etc', 'plugins'),  ROOT_PLUGINS_KEEP, trim_cmake=F
 clean_directory('io',                            ROOT_IO_KEEP)
 clean_directory('math',                          ROOT_MATH_KEEP)
 
+# remove script that looks for Python
+os.remove(os.path.join('cmake', 'modules', 'SearchRootCoreDeps.cmake'))
 
 # trim main (only need rootcling)
 print('trimming main')
@@ -202,7 +215,7 @@ inp = os.path.join('core', 'CMakeLists.txt')
 outp = inp+'.new'
 new_cml = open(outp, 'w')
 for line in open(inp).readlines():
-    if ('Lzma' in line or 'Lz4' in line):
+    if ('Lzma' in line or 'Lz4' in line or 'Zstd' in line or 'GuiCore' in line):
         line = '#'+line
     else:
         line = line.replace(' ${LZMA_LIBRARIES}', '')
@@ -262,13 +275,14 @@ for cmf in ['AfterImage', 'FTGL']:
 inp = os.path.join('cmake', 'modules', 'SearchInstalledSoftware.cmake')
 outp = inp+'.new'
 now_stripping = False
-new_cml = open(outp, 'w')
-for line in open(inp).readlines():
+new_cml = open(outp, 'w', encoding='utf-8')
+for line in open(inp, encoding='utf-8').readlines():
     if '#---Check for ftgl if needed' == line[0:28] or\
-       '#---Check for AfterImage' == line[0:24] or\
-       '#---Check for Freetype' == line[0:22] or\
-       '#---Check for LZMA' == line[0:18] or\
-       '#---Check for LZ4' == line[0:17] or\
+       '#---Check for AfterImage'     == line[0:24] or\
+       '#---Check for Freetype'       == line[0:22] or\
+       '#---Check for LZMA'           == line[0:18] or\
+       '#---Check for LZ4'            == line[0:17] or\
+       '#---Check for ZSTD'           == line[0:18] or\
        '#-------' == line[0:8]:   # openui5 (doesn't follow convention)
         now_stripping = True
     elif '#---Check' == line[0:9] or\
@@ -282,8 +296,8 @@ rename(outp, inp)
 
 inp = os.path.join('cmake', 'modules', 'RootBuildOptions.cmake')
 outp = inp+'.new'
-new_cml = open(outp, 'w', encoding="utf-8")
-for line in open(inp, encoding="utf-8").readlines():
+new_cml = open(outp, 'w', encoding='utf-8')
+for line in open(inp, encoding='utf-8').readlines():
     if 'ROOT_BUILD_OPTION(builtin_ftgl' in line or\
        'ROOT_BUILD_OPTION(builtin_afterimage' in line:
         line = '#'+line
@@ -291,13 +305,15 @@ for line in open(inp, encoding="utf-8").readlines():
 new_cml.close()
 rename(outp, inp)
 
-# remove testing, examples, and notebook
+# remove python lookup, testing, examples, and notebook
 print('trimming testing')
 inp = 'CMakeLists.txt'
 outp = inp+'.new'
 now_stripping = False
 new_cml = open(outp, 'w')
 for line in open(inp).readlines():
+    if ('SearchRootCoreDeps' in line):
+        continue
     if '#---Configure Testing using CTest' == line[0:33] or\
        '#---hsimple.root' == line[0:16]:
         now_stripping = True
@@ -438,14 +454,16 @@ except ImportError:
 for fdiff in ('cleanup_tstring', 'scanner', 'scanner_2', 'faux_typedef', 'classrules', 'template_fwd',
               'dep_template', 'no_long64_t', 'using_decls', 'sfinae', 'typedef_of_private',
               'optlevel2_forced', 'silence', 'explicit_template', 'alias_template', 'lambda', 'templ_ops',
-              'private_type_args', 'incomplete_types', 'clang_printing', 'resolution',
+              'private_type_args', 'incomplete_types', 'clang_printing',
               'stdfunc_printhack', 'anon_union', 'no_inet', 'signaltrycatch', 'nofastmath', 'pch',
-              'stackoverflow', 'stdvalue_type', 'strip_lz4_lzma', 'type_reducer',
-              'msvc', 'win64rtti', 'win64', 'win64s2'):
+              'stackoverflow', 'strip_lz4_lzma', 'type_reducer', 'resolve_path', 'classedit_scopes',
+              'msvc', 'win64rtti', 'win64', 'win64s2',
+              'gui_cleanup', 'std_in_std', 'stdfunc_templarg', 'fix_pch_build', 'access_protected',
+              'fixinstall', 'nodeleted'):
     fpatch = os.path.join('patches', fdiff+'.diff')
     print(' ==> applying patch:', fpatch)
     pset = patch.fromfile(fpatch)
-    if not pset.apply():
+    if not pset or not pset.apply():
         print("Failed to apply patch:", fdiff)
         sys.exit(2)
 
