@@ -25,7 +25,7 @@ RUN cd $TMPDIR && \
     git clone https://bitbucket.org/wlav/cppyy.git
 
 # Install cppyy-cling
-ADD create_src_directory.py $TMPDIR/cppyy-backend/cling
+#ADD create_src_directory.py $TMPDIR/cppyy-backend/cling
 RUN cd $TMPDIR/cppyy-backend/cling && \
     python3 setup.py egg_info && \
     python3 create_src_directory.py && \
